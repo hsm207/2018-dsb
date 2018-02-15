@@ -14,7 +14,7 @@ def _parse_mask_folder(mask_path):
 
 
 class DsbDataset:
-    def __init__(self, root_dir='../datasets/', stage_name='stage1'):
+    def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first'):
         """
         A class to load the training and test data into tensorflow using the Dataset API
 
@@ -28,6 +28,14 @@ class DsbDataset:
         self.train_images = Path(train_path).glob('*/images/*.png')
         self.train_masks = Path(train_path).glob('*/masks')
         self.test_images = Path(test_path).glob('*/images/*.png')
+        self.data_format = data_format
+
+    def _insert_channel_dimension(self, mask):
+        # this function is meant to be use on the mask images
+        # assume that the given mask is always grayscale and have no channel dimension
+        with tf.control_dependencies([tf.assert_rank(mask, 2)]):
+            channel_axis = 0 if self.data_format == 'channels_first' else -1
+            return tf.expand_dims(mask, axis=channel_axis)
 
     def _pair_train_images_with_mask(self):
         imgs = [str(path) for path in self.train_images]
@@ -38,7 +46,8 @@ class DsbDataset:
             .map(tf.image.decode_image)
 
         masks = tf.data.Dataset.from_tensor_slices(masks) \
-            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.int32))
+            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.int32)) \
+            .map(self._insert_channel_dimension)
 
         ds = tf.data.Dataset.zip((imgs, masks))
 
