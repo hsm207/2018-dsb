@@ -7,9 +7,13 @@ from skimage.io import imread
 
 def _parse_mask_folder(mask_path):
     masks = Path(mask_path.decode('utf-8')).glob('*')
-    masks = [imread(path) for path in masks]
+    masks = [imread(path, as_grey=True) for path in masks]
     masks = np.sum(np.stack(masks, axis=0), axis=0)
-    masks = masks.astype(np.int32)
+    # insert an axis to represent the channel ('channels_last')
+    masks = np.expand_dims(masks, -1)
+    # convert to int32, otherwise get:
+    # tensorflow.python.framework.errors_impl.UnimplementedError: Unsupported numpy type 8
+    masks = masks.astype(np.float32)
     return masks
 
 
@@ -30,26 +34,26 @@ class DsbDataset:
         self.test_images = Path(test_path).glob('*/images/*.png')
         self.data_format = data_format
 
-    def _insert_channel_dimension(self, mask):
-        # this function is meant to be use on the mask images
-        # assume that the given mask is always grayscale and have no channel dimension
-        with tf.control_dependencies([tf.assert_rank(mask, 2)]):
-            channel_axis = 0 if self.data_format == 'channels_first' else -1
-            return tf.expand_dims(mask, axis=channel_axis)
-
     def _pair_train_images_with_mask(self):
+        def set_shape(img):
+            # call this function before manipulating channel axis and batching
+            img.set_shape((None, None, 3))
+            return img
+
         imgs = [str(path) for path in self.train_images]
         masks = [str(path) for path in self.train_masks]
 
         imgs = tf.data.Dataset.from_tensor_slices(imgs) \
             .map(tf.read_file) \
-            .map(tf.image.decode_image)
+            .map(lambda img: tf.image.decode_image(img, channels=3)) \
+            .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
+            .map(set_shape)
 
         masks = tf.data.Dataset.from_tensor_slices(masks) \
-            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.int32)) \
-            .map(self._insert_channel_dimension)
+            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.float32))
 
-        ds = tf.data.Dataset.zip((imgs, masks))
+        ds = tf.data.Dataset.zip((imgs, masks)) \
+            .batch(1)
 
         return ds
 
