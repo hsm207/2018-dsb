@@ -35,9 +35,9 @@ class DsbDataset:
         self.data_format = data_format
 
     def _pair_train_images_with_mask(self):
-        def set_shape(img):
+        def set_shape_and_channel_dim(img, channel_dim):
             # call this function before manipulating channel axis and batching
-            img.set_shape((None, None, 3))
+            img.set_shape((None, None, channel_dim))
             return img
 
         imgs = [str(path) for path in self.train_images]
@@ -47,10 +47,11 @@ class DsbDataset:
             .map(tf.read_file) \
             .map(lambda img: tf.image.decode_image(img, channels=3)) \
             .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
-            .map(set_shape)
+            .map(lambda img: set_shape_and_channel_dim(img, 3))
 
         masks = tf.data.Dataset.from_tensor_slices(masks) \
-            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.float32))
+            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.float32)) \
+            .map(lambda mask: set_shape_and_channel_dim(mask, 1))
 
         ds = tf.data.Dataset.zip((imgs, masks)) \
             .batch(1)
