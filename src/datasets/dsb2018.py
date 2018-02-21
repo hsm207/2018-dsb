@@ -82,3 +82,47 @@ class DsbDataset:
             .batch(1)
 
         return imgs
+
+    def get_train_input_fn(self, take=-1, repeat=1):
+        """
+        A function to load the training set into a model using the Dataset API
+        :param take: Number of examples to take from the training set
+        :param repeat: How many passes to iterate over the training data
+        :return: A 0 zero argument function that returns a tuple ({'images':train_image}, mask)
+        """
+
+        def _train_input_fn():
+            ds = self.get_train_dataset() \
+                .take(take) \
+                .repeat(repeat)
+
+            iter = ds.make_one_shot_iterator()
+            imgs, masks = iter.get_next()
+
+            out = {'images': imgs}, masks
+
+            return out
+
+        return _train_input_fn
+
+    def get_test_input_fn(self, take=-1, repeat=1):
+        """
+        A function to load the test set into a model using the Dataset API
+        :param take: Number of examples to take from the test set
+        :param repeat: How many passes to iterate over the test data
+        :return: A 0 zero argument function that returns a dict {'images':test_image}
+        """
+
+        def _test_input_fn():
+            ds = self.get_test_dataset() \
+                .take(take) \
+                .repeat(repeat)
+
+            iter = ds.make_one_shot_iterator()
+            imgs = iter.get_next()
+
+            out = {'images': imgs}
+
+            return out
+
+        return _test_input_fn
