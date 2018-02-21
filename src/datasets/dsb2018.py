@@ -30,9 +30,9 @@ class DsbDataset:
         train_path = Path(f'{root_dir}/{stage_name}_train/')
         test_path = Path(f'{root_dir}/{stage_name}_test/')
 
-        self.train_images = Path(train_path).glob('*/images/*.png')
-        self.train_masks = Path(train_path).glob('*/masks')
-        self.test_images = Path(test_path).glob('*/images/*.png')
+        self.train_images = list(Path(train_path).glob('*/images/*.png'))
+        self.train_masks = list(Path(train_path).glob('*/masks'))
+        self.test_images = list(Path(test_path).glob('*/images/*.png'))
         self.data_format = data_format
 
     def _pair_train_images_with_mask(self):
