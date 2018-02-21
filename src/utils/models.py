@@ -2,6 +2,7 @@
 This module contains classes that implement various model architectures for both the generator and discriminator
 """
 import tensorflow as tf
+from tensorflow.python.keras.backend import set_learning_phase
 from tensorflow.python.keras.layers import Dense, LeakyReLU
 
 from utils.layers import ConvBlock, RibCage, ConvToFcAdapter
@@ -47,7 +48,8 @@ class ConvAssaf:
                                                          padding=self.padding,
                                                          is_final=True))
 
-    def __call__(self, features):
+    def __call__(self, features, mode=tf.estimator.ModeKeys.TRAIN):
+        set_learning_phase(True) if mode == tf.estimator.ModeKeys.TRAIN else set_learning_phase(False)
         self._build_layers()
         images = features['images']
 
@@ -89,11 +91,12 @@ class FullyConvRibCage:
         self.dense2 = Dense(64, use_bias=False, activation='linear', name='dense2')
         self.dense3 = Dense(1, use_bias=False, activation='sigmoid', name='dense3')
 
-    def __call__(self, inputs, conditioning_inputs):
+    def __call__(self, inputs, conditioning_inputs, mode=tf.estimator.ModeKeys.TRAIN):
+        set_learning_phase(True) if mode == tf.estimator.ModeKeys.TRAIN else set_learning_phase(False)
         self._build_layers()
 
         masks = inputs
-        images = conditioning_inputs
+        images = conditioning_inputs['images']
         concat_images_masks = tf.concat([images, masks], axis=self.channel_axis)
 
         # pass the inputs through the rib blocks
