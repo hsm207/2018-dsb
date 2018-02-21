@@ -13,6 +13,7 @@ def _parse_mask_folder(mask_path):
     masks = np.expand_dims(masks, -1)
     # convert to int32, otherwise get:
     # tensorflow.python.framework.errors_impl.UnimplementedError: Unsupported numpy type 8
+    masks = masks / 255.0
     masks = masks.astype(np.float32)
     return masks
 
