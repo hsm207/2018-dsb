@@ -4,22 +4,34 @@ import numpy as np
 import tensorflow as tf
 from skimage.io import imread
 
+import utils.preprocessing as preprocess
 
-def _parse_mask_folder(mask_path):
+
+def _parse_mask_folder(mask_path, use_edges=False):
     masks = Path(mask_path.decode('utf-8')).glob('*')
     masks = [imread(path, as_grey=True) for path in masks]
+
+    # binarize masks
+    masks = [preprocess.make_mask_grayscale(mask) for mask in masks]
+
+    # annotate the edges
+    if use_edges:
+        masks = [preprocess.annotate_mask_edges(mask, contour_color=2) for mask in masks]
+
+    # combine individual masks into a single image
     masks = np.sum(np.stack(masks, axis=0), axis=0)
+
     # insert an axis to represent the channel ('channels_last')
     masks = np.expand_dims(masks, -1)
     # convert to int32, otherwise get:
     # tensorflow.python.framework.errors_impl.UnimplementedError: Unsupported numpy type 8
-    masks = masks / 255.0
     masks = masks.astype(np.float32)
+
     return masks
 
 
 class DsbDataset:
-    def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first'):
+    def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first', use_edges=False):
         """
         A class to load the training and test data into tensorflow using the Dataset API
 
@@ -34,6 +46,7 @@ class DsbDataset:
         self.train_masks = list(Path(train_path).glob('*/masks'))
         self.test_images = list(Path(test_path).glob('*/images/*.png'))
         self.data_format = data_format
+        self.use_edges = use_edges
 
     def _set_shape_and_channel_dim(self, img, channel_dim):
         # call this function before manipulating channel axis and batching
@@ -44,6 +57,8 @@ class DsbDataset:
         imgs = [str(path) for path in self.train_images]
         masks = [str(path) for path in self.train_masks]
 
+        mask_channels = 3 if self.use_edges else 1
+
         imgs = tf.data.Dataset.from_tensor_slices(imgs) \
             .map(tf.read_file) \
             .map(lambda img: tf.image.decode_image(img, channels=3)) \
@@ -51,8 +66,9 @@ class DsbDataset:
             .map(lambda img: self._set_shape_and_channel_dim(img, 3))
 
         masks = tf.data.Dataset.from_tensor_slices(masks) \
-            .map(lambda f: tf.py_func(_parse_mask_folder, [f], tf.float32)) \
-            .map(lambda mask: self._set_shape_and_channel_dim(mask, 1))
+            .map(lambda f: tf.py_func(_parse_mask_folder, [f, self.use_edges], tf.float32)) \
+            .map(lambda mask: preprocess.one_hot_encode_mask(mask) if self.use_edges else mask) \
+            .map(lambda mask: self._set_shape_and_channel_dim(mask, mask_channels))
 
         ds = tf.data.Dataset.zip((imgs, masks)) \
             .batch(1)

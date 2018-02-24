@@ -1,13 +1,14 @@
 import tensorflow as tf
-from tensorflow.python.keras.activations import sigmoid
+from tensorflow.python.keras.activations import sigmoid, softmax
 from tensorflow.python.keras.layers import Conv2D, BatchNormalization, LeakyReLU, MaxPooling2D, GlobalAveragePooling2D
 
 
 class ConvBlock:
     def __init__(self, filters, kernel_size, data_format='channels_first', padding='same', strides=1, alpha=0.1,
-                 is_final=False):
+                 is_final=False,
+                 use_edges=False):
         """
-        A layer that performs a the following sequence of operations:
+        A layer that performs the following sequence of operations:
             1. 2D Convolution with no activation function
             2. Batchnorm
             3. Leaky ReLu activation function
@@ -15,7 +16,7 @@ class ConvBlock:
         If is_final is set to True, then layer will perform the following sequence of operations:
             1. Batchnorm
             2. 2D Convolution with no activation function
-            3. Sigmoid activation function
+            3. Sigmoid activation function if use_edges is False, otherwise softmax channel-wise
 
         :param filters: The number of filters for the 2D convolutional layer
         :param kernel_size: The kernel size for the 2D convolutional layer
@@ -24,6 +25,8 @@ class ConvBlock:
         :param strides: The strides to use for the convolutional layer
         :param alpha: The parameter of the leaky ReLu activation
         :param is_final: Boolean flag to signal if this block is an intermediary or final block
+        :param use_edges: Boolean flag to signal the type of activation function to use if this block is a
+               final block
         """
         channel_axis = 1 if data_format == 'channels_first' else -1
         self.is_final = is_final
@@ -39,7 +42,15 @@ class ConvBlock:
 
         self.bn = BatchNormalization(axis=channel_axis)
 
-        self.activation = LeakyReLU(alpha=alpha) if not is_final else sigmoid
+        if not is_final:
+            self.activation = LeakyReLU(alpha=alpha)
+        else:
+            if use_edges:
+                # if edges are used and it is a final layer, then number of channels must be 3
+                # and we want to normalize channel-wise
+                self.activation = lambda x: softmax(x, axis=channel_axis)
+            else:
+                self.activation = sigmoid
 
     def _forward_pass_regular(self, features):
         x = self.conv(features)

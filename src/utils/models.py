@@ -9,15 +9,17 @@ from utils.layers import ConvBlock, RibCage, ConvToFcAdapter
 
 
 class ConvAssaf:
-    def __init__(self, data_format='channels_first', padding='same'):
+    def __init__(self, data_format='channels_first', padding='same', use_edges=False):
         """
         A 5 layer fully CNN based on the "MICROSCOPY CELL SEGMENTATION VIA ADVERSARIAL NEURAL NETWORKS" paper
         by Assaf Arbelle and Tammy Riklin Raviv
         :param data_format: Data format of the input image
         :param padding: The padding to use when performing the convolutions
+        :param use_edges: Boolean flag to determine if model should use the edge information in masks or not
         """
         self.data_format = data_format
         self.padding = padding
+        self.use_edges = use_edges
 
     def _build_layers(self):
         self.conv1 = tf.make_template('conv1', ConvBlock(kernel_size=9,
@@ -40,13 +42,26 @@ class ConvAssaf:
                                                          data_format=self.data_format,
                                                          padding=self.padding))
 
-        # since the given masks have no edge annotation, the output at the final convolutional layer
-        # is 1 instead of 3 as in the paper
-        self.conv5 = tf.make_template('conv5', ConvBlock(kernel_size=1,
-                                                         filters=1,
-                                                         data_format=self.data_format,
-                                                         padding=self.padding,
-                                                         is_final=True))
+        # if use_edges is true, then the output from the Generator must be 3 channels, where:
+        # channel 0: probability of pixel is black i.e. background
+        # channel 1: probability pixel is white i.e. the body of a cell
+        # channel 2: 2, probability pixel is an edge of a cell
+        #
+        # if use_edges is false, then the output is a single channel where each value represents
+        # the probability of a pixel is a body of a cell
+        if self.use_edges:
+            self.conv5 = tf.make_template('conv5', ConvBlock(kernel_size=1,
+                                                             filters=3,
+                                                             data_format=self.data_format,
+                                                             padding=self.padding,
+                                                             is_final=True,
+                                                             use_edges=True))
+        else:
+            self.conv5 = tf.make_template('conv5', ConvBlock(kernel_size=1,
+                                                             filters=1,
+                                                             data_format=self.data_format,
+                                                             padding=self.padding,
+                                                             is_final=True))
 
     def __call__(self, features, mode=tf.estimator.ModeKeys.TRAIN):
         set_learning_phase(True) if mode == tf.estimator.ModeKeys.TRAIN else set_learning_phase(False)
