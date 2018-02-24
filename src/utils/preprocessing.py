@@ -1,5 +1,6 @@
-import numpy as np
 import cv2 as cv
+import numpy as np
+import tensorflow as tf
 
 
 def annotate_mask_edges(mask_img, contour_color=2):
@@ -37,3 +38,22 @@ def make_mask_grayscale(raw_mask):
     """
     _, bin_img = cv.threshold(raw_mask, 0, 1, cv.THRESH_BINARY)
     return bin_img
+
+
+def one_hot_encode_mask(mask_with_edge):
+    """
+    One hot encodes a mask with the edges annotated.
+
+    mask_with_edge is a single channel tensor whose values are either 0, 1 or 2.
+
+    This function converts mask_with_edge into a 3 channel binary tensor.
+
+    :param mask_with_edge: A tensor with shape (height, width, 1)
+    :return: A tensor with shape (height, width, 3)
+    """
+
+    mask_with_edge = tf.cast(mask_with_edge, tf.int32)
+    ohe_mask = tf.one_hot(mask_with_edge, depth=3, axis=-1)
+    ohe_mask = tf.squeeze(ohe_mask)
+
+    return ohe_mask
