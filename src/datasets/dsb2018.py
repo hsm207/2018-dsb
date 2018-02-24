@@ -57,6 +57,8 @@ class DsbDataset:
         imgs = [str(path) for path in self.train_images]
         masks = [str(path) for path in self.train_masks]
 
+        mask_channels = 3 if self.use_edges else 1
+
         imgs = tf.data.Dataset.from_tensor_slices(imgs) \
             .map(tf.read_file) \
             .map(lambda img: tf.image.decode_image(img, channels=3)) \
@@ -65,7 +67,8 @@ class DsbDataset:
 
         masks = tf.data.Dataset.from_tensor_slices(masks) \
             .map(lambda f: tf.py_func(_parse_mask_folder, [f, self.use_edges], tf.float32)) \
-            .map(lambda mask: self._set_shape_and_channel_dim(mask, 1))
+            .map(lambda mask: preprocess.one_hot_encode_mask(mask) if self.use_edges else mask) \
+            .map(lambda mask: self._set_shape_and_channel_dim(mask, mask_channels))
 
         ds = tf.data.Dataset.zip((imgs, masks)) \
             .batch(1)
