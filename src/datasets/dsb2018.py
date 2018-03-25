@@ -31,7 +31,8 @@ def _parse_mask_folder(mask_path, use_edges=False):
 
 
 class DsbDataset:
-    def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first', use_edges=False):
+    def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first', use_edges=False,
+                 use_pix2pix=False):
         """
         A class to load the training and test data into tensorflow using the Dataset API
 
@@ -47,6 +48,7 @@ class DsbDataset:
         self.test_images = list(Path(test_path).glob('*/images/*.png'))
         self.data_format = data_format
         self.use_edges = use_edges
+        self.use_pix2pix = use_pix2pix
 
     def _set_shape_and_channel_dim(self, img, channel_dim):
         # call this function before manipulating channel axis and batching
@@ -69,6 +71,12 @@ class DsbDataset:
             .map(lambda f: tf.py_func(_parse_mask_folder, [f, self.use_edges], tf.float32)) \
             .map(lambda mask: preprocess.one_hot_encode_mask(mask) if self.use_edges else mask) \
             .map(lambda mask: self._set_shape_and_channel_dim(mask, mask_channels))
+
+        if self.use_pix2pix:
+            imgs = imgs \
+                .map(lambda img: tf.image.resize_image_with_crop_or_pad(img, 256, 256))
+            masks = masks \
+                .map(lambda mask: tf.image.resize_image_with_crop_or_pad(mask, 256, 256))
 
         ds = tf.data.Dataset.zip((imgs, masks)) \
             .batch(1)
