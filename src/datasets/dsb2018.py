@@ -39,6 +39,10 @@ class DsbDataset:
         Assume the images are stored in folders named 'stageX_train' and 'stageX_test' where X is 1 or 2
         :param root_dir: A string representing the root directory where all the files have been downloaded to
         :param stage_name: A string representing the stage prefix of the train and test folder
+        :param data_format: A string representing the image's data format to feed into a model
+        :param use_edges: A boolean indicating whether to automatically annotate an image's edges too
+        :param use_pix2pix: A boolean indicating whethet pipeline will be fed to the pix2pix model (current
+                            implementation assumes input images are 256 x 256)
         """
         train_path = Path(f'{root_dir}/{stage_name}_train/')
         test_path = Path(f'{root_dir}/{stage_name}_test/')
