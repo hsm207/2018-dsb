@@ -10,7 +10,7 @@ class Submitter:
 
     def __init__(self, estimator, dataset):
         """
-        A class to generate the predictions on the test setto submit to Kaggle
+        A class to generate the predictions on the test set to submit to Kaggle
 
         :param estimator: An Estimator that will make the predictions
         :param dataset: An instance of the DsbDataset class (this class contains routines to generate the test set)
