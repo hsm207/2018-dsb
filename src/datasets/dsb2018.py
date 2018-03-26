@@ -289,7 +289,7 @@ class DsbDataset:
             iter = ds.make_one_shot_iterator()
             imgs, masks = iter.get_next()
 
-            out = {'images': imgs}, masks
+            out = imgs, masks
 
             return out
 
@@ -311,7 +311,7 @@ class DsbDataset:
             iter = ds.make_one_shot_iterator()
             imgs = iter.get_next()
 
-            out = {'images': imgs}
+            out = imgs
 
             return out
 
