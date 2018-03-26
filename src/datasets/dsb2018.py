@@ -245,7 +245,8 @@ class DsbDataset:
 
         :return: A Dataset in the form (microscopy image, mask of microscopy image)
         """
-        ds = self._pair_train_images_with_mask()
+        # ds = self._pair_train_images_with_mask()
+        ds = self._load_train_tfrecords()
         return ds
 
     def get_test_dataset(self):
@@ -253,15 +254,18 @@ class DsbDataset:
         Get the images to be tested
         :return: A Dataset of test images to make predictions on
         """
-        imgs = [str(path) for path in self.test_images]
-        imgs = tf.data.Dataset.from_tensor_slices(imgs) \
-            .map(tf.read_file) \
-            .map(lambda img: tf.image.decode_image(img, channels=3)) \
-            .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
-            .map(lambda img: self._set_shape_and_channel_dim(img, 3)) \
-            .batch(1)
+        # imgs = [str(path) for path in self.test_images]
+        # imgs = tf.data.Dataset.from_tensor_slices(imgs) \
+        #     .map(tf.read_file) \
+        #     .map(lambda img: tf.image.decode_image(img, channels=3)) \
+        #     .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
+        #     .map(lambda img: self._set_shape_and_channel_dim(img, 3)) \
+        #     .batch(1)
 
-        return imgs
+        # return imgs
+
+        ds = self._load_test_tfrecords()
+        return ds
 
     def get_train_input_fn(self, take=-1, repeat=1):
         """
