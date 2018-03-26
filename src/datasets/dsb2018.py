@@ -8,7 +8,7 @@ import utils.preprocessing as preprocess
 
 
 def _parse_mask_folder(mask_path, use_edges=False):
-    masks = Path(mask_path.decode('utf-8')).glob('*')
+    masks = Path(mask_path).glob('*')
     masks = [imread(path, as_grey=True) for path in masks]
 
     # binarize masks
@@ -28,6 +28,50 @@ def _parse_mask_folder(mask_path, use_edges=False):
     masks = masks.astype(np.float32)
 
     return masks
+
+
+class TfRecordExampleConverter:
+
+    def _bytes_feature(self, value):
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+    def _int64_feature(self, value):
+        return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+    def encode_example(self, image, mask=None):
+        img_height, img_width, img_channels = image.shape
+        mask_channels = mask.shape[2] if mask is not None else 0
+        img_raw = image.tostring()
+        mask_raw = mask.tostring() if mask is not None else b''
+
+        features_dict = {
+            'image_raw': self._bytes_feature(img_raw),
+            'image_height': self._int64_feature(img_height),
+            'image_width': self._int64_feature(img_width),
+            'image_channels': self._int64_feature(img_channels),
+            'mask_channels': self._int64_feature(mask_channels),
+            'mask': self._bytes_feature(mask_raw)
+        }
+
+        tfrecord_features = tf.train.Features(feature=features_dict)
+
+        tfrecord_example = tf.train.Example(features=tfrecord_features)
+
+        return tfrecord_example
+
+    def decode_example(self, example_proto):
+        features_dict = {
+            'image_raw': tf.FixedLenFeature([], tf.string),
+            'image_height': tf.FixedLenFeature([], tf.int64),
+            'image_width': tf.FixedLenFeature([], tf.int64),
+            'image_channels': tf.FixedLenFeature([], tf.int64),
+            'mask_channels': tf.FixedLenFeature([], tf.int64),
+            'mask': tf.FixedLenFeature([], tf.string)
+        }
+
+        decoded_example = tf.parse_single_example(example_proto, features_dict)
+
+        return decoded_example
 
 
 class DsbDataset:
@@ -54,10 +98,118 @@ class DsbDataset:
         self.use_edges = use_edges
         self.use_pix2pix = use_pix2pix
 
+        self.tfrecords_train_path = f'{root_dir}/tfrecords/{stage_name}_train.tfrecords'
+        self.tfrecords_test_path = f'{root_dir}/tfrecords/{stage_name}_test.tfrecords'
+
+    def _create_train_tfrecords(self):
+        imgs = [imread(img_path) for img_path in self.train_images]
+        masks = [_parse_mask_folder(mask_path, self.use_edges) for mask_path in self.train_masks]
+
+        writer = tf.python_io.TFRecordWriter(self.tfrecords_train_path)
+        encoder = TfRecordExampleConverter()
+
+        print('Converting training images to tfrecords...')
+        for img, mask in zip(imgs, masks):
+            tfrecord_example = encoder.encode_example(img, mask)
+            writer.write(tfrecord_example.SerializeToString())
+        print('Finished converting training images to tfrecords!')
+
+        writer.close()
+
+    def _create_test_tfrecords(self):
+        imgs = [imread(img_path) for img_path in self.test_images]
+
+        writer = tf.python_io.TFRecordWriter(self.tfrecords_test_path)
+        encoder = TfRecordExampleConverter()
+
+        print('Converting test images to tfrecords...')
+        for img in imgs:
+            tfrecord_example = encoder.encode_example(img)
+            writer.write(tfrecord_example.SerializeToString())
+        print('Finished converting test images to tfrecords!')
+
+        writer.close()
+
+    def _load_train_tfrecords(self):
+        def _parse_decoded_example(decoded_example):
+            image_raw = tf.decode_raw(decoded_example['image_raw'], tf.uint8)
+            mask_raw = tf.decode_raw(decoded_example['mask'], tf.float32)
+            h, w, c = decoded_example['image_height'], decoded_example['image_width'], decoded_example['image_channels']
+            mask_c = decoded_example['mask_channels']
+            image_shape = tf.stack([h, w, c])
+            mask_shape = tf.stack([h, w, mask_c])
+
+            features = {
+                'image': tf.reshape(image_raw, image_shape)[:, :, 0:3],
+                'height': h,
+                'width': w,
+                'channels': c
+            }
+
+            label = tf.reshape(mask_raw, mask_shape)
+
+            return features, label
+
+        decoder = TfRecordExampleConverter()
+        ds = tf.data.TFRecordDataset(self.tfrecords_train_path) \
+            .map(decoder.decode_example) \
+            .map(_parse_decoded_example)
+
+        if self.use_pix2pix:
+            ds = ds \
+                .map(lambda features, label: (self._resize_imgs(features, label, 256, 256)))
+
+        if self.use_edges:
+            ds = ds \
+                .map(lambda features, label: (features, preprocess.one_hot_encode_mask(label)))
+
+        ds = ds.batch(1)
+
+        return ds
+
+    def _load_test_tfrecords(self):
+        def _parse_decoded_example(decoded_example):
+            image_raw = tf.decode_raw(decoded_example['image_raw'], tf.uint8)
+            h, w, c = decoded_example['image_height'], decoded_example['image_width'], decoded_example['image_channels']
+
+            image_shape = tf.stack([h, w, c])
+
+            features = {
+                'image': tf.reshape(image_raw, image_shape)[:, :, 0:3],
+                'height': h,
+                'width': w,
+                'channels': c
+            }
+
+            return features
+
+        decoder = TfRecordExampleConverter()
+        ds = tf.data.TFRecordDataset(self.tfrecords_test_path) \
+            .map(decoder.decode_example) \
+            .map(_parse_decoded_example)
+
+        if self.use_pix2pix:
+            ds = ds \
+                .map(lambda features: self._resize_imgs(features, label=None, new_height=256, new_width=256))
+
+        ds = ds.batch(1)
+
+        return ds
+
     def _set_shape_and_channel_dim(self, img, channel_dim):
         # call this function before manipulating channel axis and batching
         img.set_shape((None, None, channel_dim))
         return img
+
+    def _resize_imgs(self, features, label, new_height=256, new_width=256):
+        img = features['image']
+        features['image'] = tf.image.resize_images(img, (new_height, new_width))
+
+        if label is not None:
+            label = tf.image.resize_images(label, (new_height, new_width))
+            return features, label
+        else:
+            return features
 
     def _pair_train_images_with_mask(self):
         imgs = [str(path) for path in self.train_images]
