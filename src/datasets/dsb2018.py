@@ -150,6 +150,9 @@ class DsbDataset:
 
             return features, label
 
+        if not Path(self.tfrecords_train_path).exists():
+            self._create_train_tfrecords()
+
         decoder = TfRecordExampleConverter()
         ds = tf.data.TFRecordDataset(self.tfrecords_train_path) \
             .map(decoder.decode_example) \
@@ -182,6 +185,9 @@ class DsbDataset:
             }
 
             return features
+
+        if not Path(self.tfrecords_test_path).exists():
+            self._create_test_tfrecords()
 
         decoder = TfRecordExampleConverter()
         ds = tf.data.TFRecordDataset(self.tfrecords_test_path) \
