@@ -76,7 +76,7 @@ class TfRecordExampleConverter:
 
 class DsbDataset:
     def __init__(self, root_dir='../datasets/', stage_name='stage1', data_format='channels_first', use_edges=False,
-                 use_pix2pix=False):
+                 use_pix2pix=False, training_batch_size=1):
         """
         A class to load the training and test data into tensorflow using the Dataset API
 
@@ -97,6 +97,9 @@ class DsbDataset:
         self.data_format = data_format
         self.use_edges = use_edges
         self.use_pix2pix = use_pix2pix
+        # Note: Setting batch size to 1 can lead to problmes when training for long iterations
+        # See https://discuss.pytorch.org/t/nan-when-i-use-batch-normalization-batchnorm1d/322/16
+        self.train_batch_size = training_batch_size
 
         self.tfrecords_train_path = '{}/tfrecords/{}_train.tfrecords'.format(root_dir, stage_name)
         self.tfrecords_test_path = '{}/tfrecords/{}_test.tfrecords'.format(root_dir, stage_name)
@@ -170,7 +173,7 @@ class DsbDataset:
             ds = ds \
                 .map(lambda features, label: (features, preprocess.one_hot_encode_mask(label)))
 
-        ds = ds.batch(1)
+        ds = ds.batch(self.train_batch_size)
 
         return ds
 
