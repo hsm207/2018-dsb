@@ -224,34 +224,6 @@ class DsbDataset:
         else:
             return features
 
-    def _pair_train_images_with_mask(self):
-        imgs = [str(path) for path in self.train_images]
-        masks = [str(path) for path in self.train_masks]
-
-        mask_channels = 3 if self.use_edges else 1
-
-        imgs = tf.data.Dataset.from_tensor_slices(imgs) \
-            .map(tf.read_file) \
-            .map(lambda img: tf.image.decode_image(img, channels=3)) \
-            .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
-            .map(lambda img: self._set_shape_and_channel_dim(img, 3))
-
-        masks = tf.data.Dataset.from_tensor_slices(masks) \
-            .map(lambda f: tf.py_func(_parse_mask_folder, [f, self.use_edges], tf.float32)) \
-            .map(lambda mask: preprocess.one_hot_encode_mask(mask) if self.use_edges else mask) \
-            .map(lambda mask: self._set_shape_and_channel_dim(mask, mask_channels))
-
-        if self.use_pix2pix:
-            imgs = imgs \
-                .map(lambda img: tf.image.resize_image_with_crop_or_pad(img, 256, 256))
-            masks = masks \
-                .map(lambda mask: tf.image.resize_image_with_crop_or_pad(mask, 256, 256))
-
-        ds = tf.data.Dataset.zip((imgs, masks)) \
-            .batch(1)
-
-        return ds
-
     def get_train_dataset(self):
         """
         Get a dataset where the masks of a given microscopy image into a single mask image
@@ -267,15 +239,6 @@ class DsbDataset:
         Get the images to be tested
         :return: A Dataset of test images to make predictions on
         """
-        # imgs = [str(path) for path in self.test_images]
-        # imgs = tf.data.Dataset.from_tensor_slices(imgs) \
-        #     .map(tf.read_file) \
-        #     .map(lambda img: tf.image.decode_image(img, channels=3)) \
-        #     .map(lambda img: tf.image.convert_image_dtype(img, tf.float32)) \
-        #     .map(lambda img: self._set_shape_and_channel_dim(img, 3)) \
-        #     .batch(1)
-
-        # return imgs
 
         ds = self._load_test_tfrecords()
         return ds
