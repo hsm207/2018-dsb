@@ -173,7 +173,8 @@ class DsbDataset:
             ds = ds \
                 .map(lambda features, label: (features, preprocess.one_hot_encode_mask(label)))
 
-        ds = ds.batch(self.train_batch_size)
+        ds = ds.batch(self.train_batch_size) \
+            .shuffle(buffer_size=670)
 
         return ds
 
