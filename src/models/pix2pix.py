@@ -105,7 +105,7 @@ class Unet:
         # track the outputs for fun
         self.encoder_outputs = []
         self.decoder_outputs = []
-        output = features['images']
+        output = features['image']
 
         # pass the inputs all the way through the encoding layers while storing the intermediary outputs too
         for encoder in self.encoders:
@@ -177,7 +177,7 @@ class PatchGAN:
 
         self._build_layers()
         # note that mask is the output from generator and images is the conditioning input
-        images = conditioning_inputs['images']
+        images = conditioning_inputs['image']
         mask = inputs
 
         output = tf.concat([mask, images], axis=self.channel_axis)
