@@ -139,14 +139,18 @@ class DsbDataset:
             image_shape = tf.stack([h, w, c])
             mask_shape = tf.stack([h, w, mask_c])
 
+            image = tf.reshape(image_raw, image_shape)[:, :, 0:3]
+            image = self._set_shape_and_channel_dim(image, 3)
+            image = tf.cast(image, tf.float32)
             features = {
-                'image': tf.reshape(image_raw, image_shape)[:, :, 0:3],
+                'image': image,
                 'height': h,
                 'width': w,
                 'channels': c
             }
 
             label = tf.reshape(mask_raw, mask_shape)
+            label = self._set_shape_and_channel_dim(label, 1)
 
             return features, label
 
@@ -176,9 +180,12 @@ class DsbDataset:
             h, w, c = decoded_example['image_height'], decoded_example['image_width'], decoded_example['image_channels']
 
             image_shape = tf.stack([h, w, c])
+            image = tf.reshape(image_raw, image_shape)[:, :, 0:3]
+            image = self._set_shape_and_channel_dim(image, 3)
+            image = tf.cast(image, tf.float32)
 
             features = {
-                'image': tf.reshape(image_raw, image_shape)[:, :, 0:3],
+                'image': image,
                 'height': h,
                 'width': w,
                 'channels': c
