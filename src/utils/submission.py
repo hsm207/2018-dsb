@@ -59,7 +59,7 @@ class Submitter:
 
         return out_pred_df
 
-    def generate_submission_file(self, save_dir='../submissions/'):
+    def generate_submission_file(self, save_dir='../submissions/', file_suffix=''):
         """
         Create the csv file to upload to Kaggle.
 
