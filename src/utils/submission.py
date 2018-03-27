@@ -8,7 +8,7 @@ from skimage.morphology import label
 
 class Submitter:
 
-    def __init__(self, estimator, dataset):
+    def __init__(self, estimator, dataset, use_edges=False, data_format='channels_first'):
         """
         A class to generate the predictions on the test set to submit to Kaggle
 
@@ -17,6 +17,8 @@ class Submitter:
         """
         self.estimator = estimator
         self.dataset = dataset
+        self.use_edges = use_edges
+        self.channel_axis = 2 if data_format == 'channels_last' else 0
 
     def _rle_encoding(self, x):
         '''
@@ -34,7 +36,15 @@ class Submitter:
         return run_lengths
 
     def _prob_to_rles(self, x, cut_off=0.5):
-        lab_img = label(x > np.mean(x))
+        if not self.use_edges:
+            lab_img = label(x > cut_off)
+        else:
+            # collapse the 3 channel mask into a 1 channel mask
+            x = np.argmax(x, axis=self.channel_axis)
+
+            # note: position 0 is considered background and position 1 or 2 is considered part of the cell
+            lab_img = label(x > 0)
+
         if lab_img.max() < 1:
             lab_img[0, 0] = 1  # ensure at least one prediction per image
         for i in range(1, lab_img.max() + 1):
