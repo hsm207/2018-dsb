@@ -69,6 +69,6 @@ class Submitter:
         :return: None. This function is called for its side effects only.
         """
         save_dir = Path(save_dir)
-        fname = f"submission_{datetime.now().strftime('%Y-%m-%d %H%M %p')}.csv"
+        fname = "submission_{}_{}.csv".format(datetime.now().strftime('%Y-%m-%d %H%M %p'), file_suffix)
         df = self._generate_submission_df()
         df.to_csv(save_dir / fname, index=False)

@@ -81,13 +81,13 @@ class Unet:
         layer = tf.make_template('C1', _EncoderBlock(filters=self.encoder_filters[0], data_format=self.data_format))
         self.encoders.append(layer)
         for i, filter_size in enumerate(self.encoder_filters[1:], 2):
-            layer = tf.make_template(f'C{i}', _EncoderBlock(filters=filter_size, data_format=self.data_format))
+            layer = tf.make_template('C{}'.format(i), _EncoderBlock(filters=filter_size, data_format=self.data_format))
             self.encoders.append(layer)
 
         decoder_filters = reversed(self.encoder_filters)
         for i, (filter_size, dropout_rate) in enumerate(zip(decoder_filters, self.decoder_dropout_rates), 1):
-            layer = tf.make_template(f'CD{i}', _DecoderBlock(filters=filter_size, dropout_rate=dropout_rate,
-                                                             data_format=self.data_format))
+            layer = tf.make_template('CD{}'.format(i), _DecoderBlock(filters=filter_size, dropout_rate=dropout_rate,
+                                                                     data_format=self.data_format))
             self.decoders.append(layer)
 
         self.final_conv = tf.make_template('final_conv',
@@ -126,7 +126,7 @@ class Unet:
 
                 x = tf.concat([output, self.encoder_outputs[-i - 1]],
                               axis=self.channel_axis,
-                              name=f'skip_connection_{i}')
+                              name='skip_connection_{}'.format(i))
             else:
                 x = output
             output = decoder(x)
@@ -157,11 +157,11 @@ class PatchGAN:
                                                      padding='valid'), create_scope_now_=True)
         self.encoders.append(layer)
         for i, filter_size in enumerate(self.encoder_filters[1:-1], 2):
-            layer = tf.make_template(f'C{i}', _EncoderBlock(filters=filter_size, data_format=self.data_format,
-                                                            padding='valid'))
+            layer = tf.make_template('C{}'.format(i), _EncoderBlock(filters=filter_size, data_format=self.data_format,
+                                                                    padding='valid'))
             self.encoders.append(layer)
 
-        layer = tf.make_template(f'C{len(self.encoder_filters)}',
+        layer = tf.make_template('C{}'.format(len(self.encoder_filters)),
                                  _EncoderBlock(filters=self.encoder_filters[-1], data_format=self.data_format,
                                                padding='valid',
                                                strides=1)

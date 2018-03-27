@@ -88,8 +88,8 @@ class DsbDataset:
         :param use_pix2pix: A boolean indicating whethet pipeline will be fed to the pix2pix model (current
                             implementation assumes input images are 256 x 256)
         """
-        train_path = Path(f'{root_dir}/{stage_name}_train/')
-        test_path = Path(f'{root_dir}/{stage_name}_test/')
+        train_path = Path('{}/{}_train/'.format(root_dir, stage_name))
+        test_path = Path('{}/{}_test/'.format(root_dir, stage_name))
 
         self.train_images = list(Path(train_path).glob('*/images/*.png'))
         self.train_masks = list(Path(train_path).glob('*/masks'))
@@ -98,8 +98,8 @@ class DsbDataset:
         self.use_edges = use_edges
         self.use_pix2pix = use_pix2pix
 
-        self.tfrecords_train_path = f'{root_dir}/tfrecords/{stage_name}_train.tfrecords'
-        self.tfrecords_test_path = f'{root_dir}/tfrecords/{stage_name}_test.tfrecords'
+        self.tfrecords_train_path = '{}/tfrecords/{}_train.tfrecords'.format(root_dir, stage_name)
+        self.tfrecords_test_path = '{}/tfrecords/{}_test.tfrecords'.format(root_dir, stage_name)
 
     def _create_train_tfrecords(self):
         imgs = [imread(img_path) for img_path in self.train_images]
