@@ -1,3 +1,4 @@
+# I don't remember which repo I base this oode on :(
 import functools
 
 import tensorflow as tf

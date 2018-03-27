@@ -14,6 +14,8 @@ class Submitter:
 
         :param estimator: An Estimator that will make the predictions
         :param dataset: An instance of the DsbDataset class (this class contains routines to generate the test set)
+        :param use_edges: A boolean indicating whether predicted masks has 3 channels (True) or just 1 channel (False)
+        :param data_format: A string representing the format of the predicted masks
         """
         self.estimator = estimator
         self.dataset = dataset
@@ -75,7 +77,9 @@ class Submitter:
 
         The file is named 'submission_timestamp.csv'
 
-        :param save_dir: A string representing the directory to save the submission file
+        :param save_dir: A string representing the directory to save the submission file.
+        :param file_suffix: A string to append to the submission file name (useful for identifying
+                            which model generated the predictions).
         :return: None. This function is called for its side effects only.
         """
         save_dir = Path(save_dir)
