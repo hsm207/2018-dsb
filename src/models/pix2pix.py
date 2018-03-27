@@ -71,7 +71,7 @@ class Unet:
 
         self._build_layers()
 
-        return self._forward(features)
+        return self._forward(features, mode)
 
     def _build_layers(self):
         self.encoders = []
@@ -101,11 +101,13 @@ class Unet:
                                                                       0, 0.02))
                                            )
 
-    def _forward(self, features, mode='train'):
+    def _forward(self, features, mode=tf.estimator.ModeKeys.TRAIN):
         # track the outputs for fun
         self.encoder_outputs = []
         self.decoder_outputs = []
         output = features['image']
+        ori_height = tf.cast(features['height'], tf.int32)
+        ori_width = tf.cast(features['width'], tf.int32)
 
         # pass the inputs all the way through the encoding layers while storing the intermediary outputs too
         for encoder in self.encoders:
@@ -132,7 +134,12 @@ class Unet:
 
         output = self.final_conv(output)
 
-        return output
+        # resize image back to original dimensions only when predicting mask...what is eval is the context of TFGAN?
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            output = tf.image.resize_images(output, size=tf.concat([ori_height, ori_width], axis=0))
+            return output
+        else:
+            return output
 
 
 class PatchGAN:
