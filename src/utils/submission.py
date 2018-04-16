@@ -8,15 +8,19 @@ from skimage.morphology import label
 
 class Submitter:
 
-    def __init__(self, estimator, dataset):
+    def __init__(self, estimator, dataset, use_edges=False, data_format='channels_first'):
         """
-        A class to generate the predictions on the test setto submit to Kaggle
+        A class to generate the predictions on the test set to submit to Kaggle
 
         :param estimator: An Estimator that will make the predictions
         :param dataset: An instance of the DsbDataset class (this class contains routines to generate the test set)
+        :param use_edges: A boolean indicating whether predicted masks has 3 channels (True) or just 1 channel (False)
+        :param data_format: A string representing the format of the predicted masks
         """
         self.estimator = estimator
         self.dataset = dataset
+        self.use_edges = use_edges
+        self.channel_axis = 2 if data_format == 'channels_last' else 0
 
     def _rle_encoding(self, x):
         '''
@@ -34,7 +38,15 @@ class Submitter:
         return run_lengths
 
     def _prob_to_rles(self, x, cut_off=0.5):
-        lab_img = label(x > np.mean(x))
+        if not self.use_edges:
+            lab_img = label(x > cut_off)
+        else:
+            # collapse the 3 channel mask into a 1 channel mask
+            x = np.argmax(x, axis=self.channel_axis)
+
+            # note: position 0 is considered background and position 1 or 2 is considered part of the cell
+            lab_img = label(x > 0)
+
         if lab_img.max() < 1:
             lab_img[0, 0] = 1  # ensure at least one prediction per image
         for i in range(1, lab_img.max() + 1):
@@ -59,16 +71,18 @@ class Submitter:
 
         return out_pred_df
 
-    def generate_submission_file(self, save_dir='../submissions/'):
+    def generate_submission_file(self, save_dir='../submissions/', file_suffix=''):
         """
         Create the csv file to upload to Kaggle.
 
         The file is named 'submission_timestamp.csv'
 
-        :param save_dir: A string representing the directory to save the submission file
+        :param save_dir: A string representing the directory to save the submission file.
+        :param file_suffix: A string to append to the submission file name (useful for identifying
+                            which model generated the predictions).
         :return: None. This function is called for its side effects only.
         """
         save_dir = Path(save_dir)
-        fname = f"submission_{datetime.now().strftime('%Y-%m-%d %H%M %p')}.csv"
+        fname = "submission_{}_{}.csv".format(datetime.now().strftime('%Y-%m-%d %H%M %p'), file_suffix)
         df = self._generate_submission_df()
         df.to_csv(save_dir / fname, index=False)

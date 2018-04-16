@@ -104,7 +104,11 @@ class FullyConvRibCage:
 
         self.dense1 = Dense(64, use_bias=False, activation='linear', name='dense1')
         self.dense2 = Dense(64, use_bias=False, activation='linear', name='dense2')
-        self.dense3 = Dense(1, use_bias=False, activation='sigmoid', name='dense3')
+
+        # TFGAN expects the output of the discriminator to be the logits for the probability
+        # that image is real.
+        # So, no need to call sigmoid.
+        self.dense3 = Dense(1, use_bias=False, activation='linear', name='dense3')
 
     def __call__(self, inputs, conditioning_inputs, mode=tf.estimator.ModeKeys.TRAIN):
         set_learning_phase(True) if mode == tf.estimator.ModeKeys.TRAIN else set_learning_phase(False)
