@@ -1,6 +1,8 @@
 # Introduction
 My work on Kaggle's 2018 Data Science Bowl competition.
 
+I trained a variant of the [pix2pix](https://phillipi.github.io/pix2pix/) model to perform image segmentation on cell microscopy images.
+
 # Status
 
 ## 17 April 2018
